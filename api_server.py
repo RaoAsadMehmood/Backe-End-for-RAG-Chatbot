@@ -88,7 +88,7 @@ app = FastAPI(title="RAG Chatbot API")
 # In production, replace "*" with your frontend domain
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://physical-ai-humanoid-robotics-beige.vercel.app,http://localhost:3000"
+    "https://physical-ai-humanoid-robotics-beige.vercel.app"
 ).split(",")
 
 app.add_middleware(
@@ -110,12 +110,20 @@ class ChatResponse(BaseModel):
 async def root():
     return {"message": "RAG Chatbot API is running"}
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+# Create a thread pool executor for running sync operations
+executor = ThreadPoolExecutor(max_workers=4)
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        result = Runner.run_sync(
-            agent,
-            input=request.message,
+        # Run the synchronous operation in a thread pool to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            executor,
+            lambda: Runner.run_sync(agent, input=request.message)
         )
         return ChatResponse(response=result.final_output)
     except Exception as e:
@@ -128,7 +136,7 @@ async def chat(request: ChatRequest):
         else:
             return ChatResponse(
                 response="",
-                error=f"Error: {error_msg[:200]}"
+                error="Error: " + error_msg[:200]
             )
 
 if __name__ == "__main__":

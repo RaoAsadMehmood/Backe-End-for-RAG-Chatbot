@@ -91,28 +91,30 @@ You are a concise AI tutor for Physical AI and Humanoid Robotics. Answer questio
     tools=[retrieve]
 )    
 
-try:
-    result = Runner.run_sync(
-        agent,
-        input="What is Pyhsical AI and how is it different from traditional AI?"    ,
-    )
-    print(result.final_output)
-except Exception as e:
-    error_msg = str(e)
-    if "429" in error_msg or "RateLimitError" in error_msg or "quota" in error_msg.lower():
-        print("\n❌ ERROR: OpenAI API Quota/Rate Limit Exceeded")
-        print("=" * 60)
-        print("Your OpenAI API quota or rate limit has been exceeded.")
-        print("\nPossible solutions:")
-        print("1. Wait for the rate limit to reset")
-        print("2. Check your API usage at: https://platform.openai.com/usage")
-        print("3. Upgrade your OpenAI plan if needed")
-        print("4. Verify your OPENAI_API_KEY in .env file is correct")
-        print("5. Try using a different API key or model")
-        print("\nError details:", error_msg[:200] + "..." if len(error_msg) > 200 else error_msg)
-    else:
-        print(f"\n❌ ERROR: {type(e).__name__}")
-        print("=" * 60)
-        print(f"Error message: {error_msg}")
-        import traceback
-        traceback.print_exc()
+# Only run test when executing this file directly, not when imported
+if __name__ == "__main__":
+    try:
+        result = Runner.run_sync(
+            agent,
+            input="What is Pyhsical AI and how is it different from traditional AI?",
+        )
+        print(result.final_output)
+    except Exception as e:
+        error_msg = str(e)
+        if "429" in error_msg or "RateLimitError" in error_msg or "quota" in error_msg.lower():
+            print("\n❌ ERROR: OpenAI API Quota/Rate Limit Exceeded")
+            print("=" * 60)
+            print("Your OpenAI API quota or rate limit has been exceeded.")
+            print("\nPossible solutions:")
+            print("1. Wait for the rate limit to reset")
+            print("2. Check your API usage at: https://platform.openai.com/usage")
+            print("3. Upgrade your OpenAI plan if needed")
+            print("4. Verify your OPENAI_API_KEY in .env file is correct")
+            print("5. Try using a different API key or model")
+            print("\nError details:", error_msg[:200] + "..." if len(error_msg) > 200 else error_msg)
+        else:
+            print(f"\n❌ ERROR: {type(e).__name__}")
+            print("=" * 60)
+            print(f"Error message: {error_msg}")
+            import traceback
+            traceback.print_exc()
