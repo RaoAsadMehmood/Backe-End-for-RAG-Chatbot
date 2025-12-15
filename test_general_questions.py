@@ -1,44 +1,35 @@
+#!/usr/bin/env python3
+"""
+Test script to verify that the RAG chatbot properly handles general questions
+while maintaining focus on book content.
+"""
+
 import os
-import random
+from dotenv import load_dotenv
 from agents import Agent, Runner, OpenAIChatCompletionsModel, AsyncOpenAI
 from agents import set_tracing_disabled, function_tool
-from dotenv import load_dotenv
-from agents import enable_verbose_stdout_logging
+import cohere
+from qdrant_client import QdrantClient
 
-
-enable_verbose_stdout_logging()
-
+# Load environment variables
 load_dotenv()
 set_tracing_disabled(disabled=True)
 
-
+# Initialize OpenAI
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
-    raise ValueError("OPENAI_API_KEY not found in environment variables. Please add it to your .env file.")
+    raise ValueError("OPENAI_API_KEY not found in environment variables.")
 
-provider = AsyncOpenAI(
-    api_key=openai_api_key
-)
-
+provider = AsyncOpenAI(api_key=openai_api_key)
 model = OpenAIChatCompletionsModel(
-    model="gpt-4o-mini",  # You can change this to "gpt-4", "gpt-3.5-turbo", etc.
+    model="gpt-4o-mini",
     openai_client=provider
 )
 
-import cohere
-from qdrant_client import QdrantClient
-import os
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Initialize Cohere client
+# Initialize Cohere and Qdrant
 cohere_client = cohere.Client(os.getenv("COHERE_API_KEY"))
-
-# Connect to Qdrant
 qdrant_client = QdrantClient(
-    url=os.getenv("QDRANT_URL"), 
+    url=os.getenv("QDRANT_URL"),
     api_key=os.getenv("QDRANT_API_KEY"),
 )
 
@@ -46,10 +37,10 @@ def get_embedding(text):
     """Get embedding vector from Cohere Embed v3"""
     response = cohere_client.embed(
         model=os.getenv("EMBED_MODEL", "embed-english-v3.0"),
-        input_type="search_query",  # Use search_query for queries
+        input_type="search_query",
         texts=[text],
     )
-    return response.embeddings[0]  # Return the first embedding
+    return response.embeddings[0]
 
 @function_tool
 def retrieve(query):
@@ -61,11 +52,10 @@ def retrieve(query):
     )
     return [point.payload["text"] for point in result.points]
 
-
+# Create agent with updated instructions
 agent = Agent(
     name="Assistant for Physical AI & Humanoid Robotics",
-    instructions=
-"""
+    instructions="""
 You are a concise AI tutor for Physical AI and Humanoid Robotics. Your primary role is to answer questions using retrieved textbook content about Physical AI and Humanoid Robotics.
 
 **CRITICAL: Be CONCISE to minimize API costs:**
@@ -100,32 +90,33 @@ You are a concise AI tutor for Physical AI and Humanoid Robotics. Your primary r
 """,
     model=model,
     tools=[retrieve]
-)    
+)
 
-# Only run test when executing this file directly, not when imported
-if __name__ == "__main__":
+# Test general questions
+test_questions = [
+    "Who are you?",
+    "How are you?",
+    "What can you do?",
+    "Tell me about yourself",
+    "What is your purpose?",
+    "Explain quantum physics",
+    "What's the weather like today?",
+    # These should trigger textbook search
+    "What is Physical AI?",
+    "Explain humanoid robotics",
+    "How do robots learn?"
+]
+
+print("Testing the RAG chatbot's response to general questions...\n")
+
+for question in test_questions:
+    print(f"Question: {question}")
     try:
         result = Runner.run_sync(
             agent,
-            input="What is Pyhsical AI and how is it different from traditional AI?",
+            input=question
         )
-        print(result.final_output)
+        print(f"Response: {result.final_output}")
     except Exception as e:
-        error_msg = str(e)
-        if "429" in error_msg or "RateLimitError" in error_msg or "quota" in error_msg.lower():
-            print("\n❌ ERROR: OpenAI API Quota/Rate Limit Exceeded")
-            print("=" * 60)
-            print("Your OpenAI API quota or rate limit has been exceeded.")
-            print("\nPossible solutions:")
-            print("1. Wait for the rate limit to reset")
-            print("2. Check your API usage at: https://platform.openai.com/usage")
-            print("3. Upgrade your OpenAI plan if needed")
-            print("4. Verify your OPENAI_API_KEY in .env file is correct")
-            print("5. Try using a different API key or model")
-            print("\nError details:", error_msg[:200] + "..." if len(error_msg) > 200 else error_msg)
-        else:
-            print(f"\n❌ ERROR: {type(e).__name__}")
-            print("=" * 60)
-            print(f"Error message: {error_msg}")
-            import traceback
-            traceback.print_exc()
+        print(f"Error: {str(e)}")
+    print("-" * 80)
